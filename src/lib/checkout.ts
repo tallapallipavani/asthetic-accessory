@@ -44,8 +44,13 @@ function getClient(): ConvexHttpClient {
  */export async function placeDemoOrder(
   input: PlaceOrderInput,
   method: string,
+  methodName?: string,
 ): Promise<PlacedOrder> {
-  return getClient().mutation(api.orders.demoPay, { ...input, method })
+  return getClient().mutation(api.orders.demoPay, {
+    ...input,
+    method,
+    paymentMethod: methodName,
+  })
 }
 
 /**

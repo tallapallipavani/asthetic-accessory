@@ -41,7 +41,9 @@ interface OrderRow {
   shipping: number
   total: number
   status: string
+  paymentMethod?: string
   paymentId?: string
+  razorpayOrderId?: string
   createdAt: number
 }
 
@@ -55,23 +57,21 @@ const ORDER_FLOW: { from: string; to: string; label: string }[] = [
 ]
 
 /**
- * Human-friendly payment info from the stored payment id.
- * Demo ids look like "demo:gpay:1699..."; real Razorpay ids differ.
+ * Payment facts for the admin order card.
+ * - Demo orders: friendly method stored in `paymentMethod`; the payment id
+ *   is a synthetic "demo:<channel>:<ts>" id, so there's no real gateway ref.
+ * - Real (Razorpay) orders: `razorpayOrderId` ("rzp_...") is the gateway
+ *   reference and `paymentId` is the captured payment's transaction id.
  */
-function paymentInfo(order: OrderRow): { label: string; isDemo: boolean } {
-  const raw = order.paymentId ?? ""
-  if (!raw) return { label: "Not recorded", isDemo: false }
-  if (raw.startsWith("demo:")) {
-    const method = raw.split(":")[1] ?? "upi"
-    const names: Record<string, string> = {
-      gpay: "Google Pay (demo)",
-      phonepe: "PhonePe (demo)",
-      paytm: "Paytm (demo)",
-      card: "Card / Netbanking (demo)",
-    }
-    return { label: names[method] ?? `${method} (demo)`, isDemo: true }
-  }
-  return { label: "Online payment", isDemo: false }
+function paymentInfo(order: OrderRow): {
+  method: string
+  isDemo: boolean
+  reference: string | null
+} {
+  const isDemo = (order.paymentId ?? "").startsWith("demo:")
+  const method = order.paymentMethod ?? (isDemo ? "UPI (demo)" : "Online payment")
+  const reference = order.razorpayOrderId ?? order.paymentId ?? null
+  return { method, isDemo, reference }
 }
 
 export default function AdminPanel() {
@@ -452,17 +452,36 @@ export default function AdminPanel() {
                                 <DetailLine>📍 {o.customer.address}</DetailLine>
                               )}
                             </div>
-                            {/* payment */}
+                            {/* payment + order meta */}
                             <div>
-                              <DetailLabel>Payment</DetailLabel>
-                              <DetailLine>
-                                {info.isDemo ? "🧪 " : "💳 "}
-                                {info.label}
-                              </DetailLine>
-                              <DetailLine>Status: {o.status}</DetailLine>
+                              <DetailLabel>Order</DetailLabel>
                               <DetailLine>
                                 Placed: {new Date(o.createdAt).toLocaleString()}
                               </DetailLine>
+                              <DetailLine>
+                                Status: <StatusChip status={o.status} />
+                              </DetailLine>
+                              <div className="mt-3">
+                                <DetailLabel>Payment</DetailLabel>
+                                <DetailLine>
+                                  {info.isDemo ? "🧪 " : "💳 "}
+                                  {info.method}
+                                </DetailLine>
+                                {info.isDemo && (
+                                  <DetailLine style={{ color: colors.tanFaint }}>
+                                    Demo payment — no real charge
+                                  </DetailLine>
+                                )}
+                                {info.reference && (
+                                  <DetailLine
+                                    title={info.reference}
+                                    style={{ color: colors.tanFaint, fontFamily: "monospace" }}
+                                  >
+                                    Ref: {info.reference.slice(0, 28)}
+                                    {info.reference.length > 28 ? "…" : ""}
+                                  </DetailLine>
+                                )}
+                              </div>
                             </div>
                           </div>
 
@@ -635,11 +654,20 @@ function DetailLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-function DetailLine({ children }: { children: React.ReactNode }) {
+function DetailLine({
+  children,
+  style,
+  title,
+}: {
+  children: React.ReactNode
+  style?: React.CSSProperties
+  title?: string
+}) {
   return (
     <p
       className="text-xs mb-0.5 break-words"
-      style={{ color: colors.brown, fontFamily: fonts.sans }}
+      style={{ color: colors.brown, fontFamily: fonts.sans, ...style }}
+      title={title}
     >
       {children}
     </p>

@@ -39,7 +39,12 @@ export default defineSchema({
     total: v.number(),
     // "pending" until the payment webhook confirms it, then "paid"
     status: v.string(),
+    // Friendly payment channel, e.g. "Google Pay", "PhonePe", "Card / Netbanking"
+    paymentMethod: v.optional(v.string()),
+    // Gateway transaction id — demo ids carry a "demo:" prefix; real Razorpay
+    // captures store the Razorpay payment id here.
     paymentId: v.optional(v.string()),
+    // Razorpay order id created server-side at checkout ("rzp_...").
     razorpayOrderId: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_status", ["status"]).index("by_razorpay_order", ["razorpayOrderId"]),

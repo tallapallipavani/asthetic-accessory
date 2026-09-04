@@ -51,7 +51,7 @@ export default function CheckoutModal({
     setStep("pay")
   }
 
-  const pay = async (method: string) => {
+  const pay = async (methodId: string, methodName: string) => {
     setPayError("")
     setStep("processing")
     // Simulate the UPI app redirect + approval round-trip.
@@ -70,7 +70,8 @@ export default function CheckoutModal({
           total,
           customer: { name: name.trim(), email: email.trim(), phone: phone.trim() || undefined, address: address.trim() || undefined },
         },
-        method,
+        methodId,
+        methodName,
       )
       onComplete({
         number: placed.number,
@@ -177,7 +178,7 @@ export default function CheckoutModal({
                 {UPI_APPS.map((app) => (
                   <button
                     key={app.id}
-                    onClick={() => pay(app.id)}
+                    onClick={() => pay(app.id, app.name)}
                     className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm transition-all hover:brightness-105"
                     style={{
                       background: "white",

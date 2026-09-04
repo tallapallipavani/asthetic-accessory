@@ -28,6 +28,7 @@ export const demoPay = mutation({
       address: v.optional(v.string()),
     }),
     method: v.optional(v.string()),
+    paymentMethod: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     if (args.total <= 0 || args.items.length === 0)
@@ -42,6 +43,7 @@ export const demoPay = mutation({
       shipping: args.shipping,
       total: args.total,
       status: "paid",
+      paymentMethod: args.paymentMethod ?? "UPI",
       paymentId: `demo:${args.method ?? "upi"}:${Date.now()}`,
       createdAt: Date.now(),
     })
