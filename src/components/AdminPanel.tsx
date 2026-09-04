@@ -567,7 +567,7 @@ function StatusChip({ status }: { status: string }) {
   const palette: Record<string, { bg: string; fg: string }> = {
     paid: { bg: "rgba(109,186,90,0.15)", fg: colors.successDeep },
     processing: { bg: "rgba(200,151,58,0.18)", fg: colors.goldDark },
-    shipped: { bg: "rgba(120,150,220,0.15)", fg: "#3f5da8" },
+    shipped: { bg: "rgba(122,149,216,0.15)", fg: colors.blue },
     delivered: { bg: "rgba(109,186,90,0.22)", fg: colors.successDeep },
     pending: { bg: "rgba(200,151,58,0.12)", fg: colors.goldDark },
     failed: { bg: "rgba(179,38,30,0.12)", fg: colors.danger },

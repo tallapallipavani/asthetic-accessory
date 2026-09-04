@@ -41,6 +41,10 @@ export const colors = {
   successDeep: "#4E8A3D",
   successInk: "#2F5D24",
 
+  // status blues (shipped / in-transit)
+  blue: "#4A6FBF",
+  blueSoft: "#7A95D8",
+
   // destructive actions / errors
   danger: "#B3261E",
 
