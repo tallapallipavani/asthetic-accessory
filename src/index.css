@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  /* Brand gold — exposes utilities like ring-gold for focus indicators */
+  --color-gold: #c8973a;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* Spin & Win confetti */
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-10vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(110vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+/* Prize reveal pop-in */
+@keyframes pop-in {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.pop-in {
+  animation: pop-in 0.55s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+}

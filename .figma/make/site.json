@@ -1,0 +1,11 @@
+{
+  "title": "Asthetic Accessory",
+  "description": "Asthetic Accessory — curated fine jewellery. Handcrafted necklaces, rings, earrings, bracelets, and anklets for the thoughtful collector.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
