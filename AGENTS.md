@@ -18,7 +18,8 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `src/types.ts` - Shared types (`Product` with `addedAt`, `CartItem`, `Reward`, `Order`)
 - `src/data.ts` - Static catalog constants (`CATEGORIES`, `PRIZES`, `PRODUCTS`) — products carry ISO `addedAt` dates that drive the "Newest First" sort
 - `src/lib/persistence.ts` - localStorage helpers and image data-URL utilities
-- `src/lib/cart.ts`, `src/lib/filter.ts`, `src/lib/rewards.ts` - Pure cart, filtering/sorting, and spin-reward logic (unit-tested alongside in colocated `*.test.ts` files)
+- `src/lib/cart.ts`, `src/lib/filter.ts`, `src/lib/rewards.ts` - Pure cart, filtering/sorting, and spin-reward logic (unit-tested alongside in colocated `*.test.ts` files). `cart.ts` is stock-aware: `availableStock`, `addCartItem`/`updateCartQuantity` cap at `product.stock` when tracked
+- Products carry optional `sku` + `stock` (stock `0` = sold out; blank/undefined = untracked). The storefront shows "Sold Out" states; the admin product form edits both and the list shows a stock badge
 - `src/lib/urlState.ts` - `useUrlFilterState` hook syncing category/search/sort to the URL
 - `src/lib/useOverlay.ts` - `useOverlay` hook for dialogs/drawers: Escape-to-close, background scroll lock, focus move/trap/restore
 - `src/lib/catalog.ts` - `useCatalog` (live Convex catalog with static fallback) + `applyLocalOverrides` (persisted photo/price overrides)
@@ -27,6 +28,7 @@ This is the canonical project structure. Start with task-relevant files below. O
 - `src/components/CheckoutModal.tsx` + `src/lib/checkout.ts` - checkout UI (details → demo UPI payment step → recorded order); swap `placeDemoOrder` for the Razorpay flow when `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` are set on the deployment
 - `.env.local` - `VITE_CONVEX_URL` + `CONVEX_DEPLOY_KEY` (gitignored); **the dev server must be restarted to pick up env changes**
 - Product `id` is a **string** (Convex `_id`); the static demo catalog uses `"1".."12"`
+- The 12 live demo products carry sku/stock via the idempotent `admin:applyStockTracking` migration (demo catalog matches `src/data.ts`); run `admin:applyInrPricing` only if prices regress
 - Admin deployments use: `CONVEX_DEPLOY_KEY=dev:... npx convex deploy` and `npx convex run <fn> '<json>'` (non-interactive; no `npx convex dev` needed)
 - `src/test/setup.ts` - Vitest setup (jest-dom matchers, Testing Library cleanup)
 - `src/components/*.test.tsx` - React Testing Library component tests (CartDrawer, WishlistDrawer, OrderConfirmation, SpinWheelModal) — run in jsdom via the `test` block in `vite.config.ts`

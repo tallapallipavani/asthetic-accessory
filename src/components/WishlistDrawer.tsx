@@ -2,7 +2,7 @@ import logoUrl from "../assets/logo.png"
 import { formatPrice } from "../lib/currency"
 import { colors, fonts, gradients } from "../lib/theme"
 import { useOverlay } from "../lib/useOverlay"
-import type { Product } from "../types"
+import { isOutOfStock, type Product } from "../types"
 
 export default function WishlistDrawer({
   items,
@@ -154,15 +154,18 @@ export default function WishlistDrawer({
                   </button>
                   <button
                     onClick={() => onAddToCart(p)}
-                    className="text-xs px-3.5 py-1.5 rounded-full font-semibold transition-all whitespace-nowrap"
+                    disabled={isOutOfStock(p)}
+                    className="text-xs px-3.5 py-1.5 rounded-full font-semibold transition-all whitespace-nowrap disabled:cursor-not-allowed"
                     style={{
-                      background: gradients.gold,
-                      color: colors.ink,
+                      background: isOutOfStock(p)
+                        ? "rgba(180,160,140,0.25)"
+                        : gradients.gold,
+                      color: isOutOfStock(p) ? colors.tanFaint : colors.ink,
                       fontFamily: fonts.sans,
                       letterSpacing: "0.03em",
                     }}
                   >
-                    + Bag
+                    {isOutOfStock(p) ? "Sold Out" : "+ Bag"}
                   </button>
                 </div>
               </div>

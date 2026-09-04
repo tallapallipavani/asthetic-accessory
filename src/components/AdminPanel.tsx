@@ -19,6 +19,8 @@ interface AdminProduct {
   _id: string
   name: string
   price: number
+  sku?: string
+  stock?: number
   category: string
   tag?: string
   description?: string
@@ -190,6 +192,8 @@ export default function AdminPanel() {
       id: p._id,
       name: p.name,
       price: p.price,
+      sku: p.sku,
+      stock: p.stock,
       category: p.category,
       tag: p.tag,
       description: p.description,
@@ -356,10 +360,12 @@ export default function AdminPanel() {
                       </p>
                       <p className="text-xs mt-0.5" style={{ color: colors.tan, fontFamily: fonts.sans }}>
                         {p.category}
+                        {p.sku ? ` · ${p.sku}` : ""}
                         {p.tag ? ` · ${p.tag}` : ""}
                         {!p.active && <span style={{ color: colors.successDeep }}> · archived</span>}
                       </p>
                     </div>
+                    <StockBadge stock={p.stock} />
                     <span className="text-sm font-semibold whitespace-nowrap" style={{ color: colors.gold, fontFamily: fonts.sans }}>
                       {formatPrice(p.price)}
                     </span>
@@ -563,6 +569,30 @@ function Shell({ children }: { children: React.ReactNode }) {
   )
 }
 
+function StockBadge({ stock }: { stock?: number }) {
+  if (stock === undefined) return null
+  const soldOut = stock <= 0
+  const low = !soldOut && stock <= 5
+  return (
+    <span
+      className="text-[10px] uppercase px-2 py-1 rounded-full shrink-0 whitespace-nowrap"
+      style={{
+        background: soldOut
+          ? "rgba(179,38,30,0.12)"
+          : low
+            ? "rgba(200,151,58,0.15)"
+            : "rgba(109,186,90,0.15)",
+        color: soldOut ? colors.danger : low ? colors.goldDark : colors.successDeep,
+        fontFamily: fonts.sans,
+        fontWeight: 700,
+        letterSpacing: "0.05em",
+      }}
+    >
+      {soldOut ? "Sold out" : `${stock} left`}
+    </span>
+  )
+}
+
 function StatusChip({ status }: { status: string }) {
   const palette: Record<string, { bg: string; fg: string }> = {
     paid: { bg: "rgba(109,186,90,0.15)", fg: colors.successDeep },
@@ -687,6 +717,10 @@ function ProductForm({
 }) {
   const [name, setName] = useState(product?.name ?? "")
   const [price, setPrice] = useState(product ? String(product.price) : "")
+  const [sku, setSku] = useState(product?.sku ?? "")
+  const [stock, setStock] = useState(
+    product?.stock === undefined ? "" : String(product.stock),
+  )
   const [category, setCategory] = useState(product?.category ?? "Necklaces")
   const [tag, setTag] = useState(product?.tag ?? "")
   const [description, setDescription] = useState(product?.description ?? "")
@@ -721,10 +755,17 @@ function ProductForm({
       setFormError("Enter a name and a price greater than 0.")
       return
     }
+    const parsedStock = stock.trim() === "" ? undefined : Math.round(Number(stock))
+    if (stock.trim() !== "" && (isNaN(parsedStock!) || parsedStock! < 0)) {
+      setFormError("Stock must be a whole number of 0 or more (or blank to not track it).")
+      return
+    }
     onSave({
       id: product?._id,
       name: name.trim(),
       price: Math.round(parsed * 100) / 100,
+      sku: sku.trim() || undefined,
+      stock: parsedStock,
       category,
       tag: tag || undefined,
       description: description.trim() || undefined,
@@ -779,8 +820,22 @@ function ProductForm({
             <input value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} placeholder="Gold Hoop Earrings" />
           </div>
           <div>
-            <label style={labelStyle}>Price</label>
+            <label style={labelStyle}>Price (₹)</label>
             <input value={price} onChange={(e) => setPrice(e.target.value)} style={inputStyle} inputMode="decimal" placeholder="1499" />
+          </div>
+          <div>
+            <label style={labelStyle}>SKU</label>
+            <input value={sku} onChange={(e) => setSku(e.target.value)} style={inputStyle} placeholder="AA-N-001" />
+          </div>
+          <div>
+            <label style={labelStyle}>Stock (units)</label>
+            <input
+              value={stock}
+              onChange={(e) => setStock(e.target.value)}
+              style={inputStyle}
+              inputMode="numeric"
+              placeholder="e.g. 10 — blank = not tracked"
+            />
           </div>
           <div>
             <label style={labelStyle}>Category</label>

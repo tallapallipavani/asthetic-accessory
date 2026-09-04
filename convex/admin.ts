@@ -86,6 +86,8 @@ export const upsertProduct = mutation({
     id: v.optional(v.id("products")),
     name: v.string(),
     price: v.number(),
+    sku: v.optional(v.string()),
+    stock: v.optional(v.number()),
     category: v.string(),
     tag: v.optional(v.string()),
     description: v.optional(v.string()),
@@ -103,6 +105,8 @@ export const upsertProduct = mutation({
       await ctx.db.patch(id, {
         ...fields,
         tag: fields.tag || undefined,
+        sku: fields.sku || undefined,
+        stock: fields.stock ?? undefined,
         description: fields.description || undefined,
         imageUrl: fields.imageUrl || undefined,
         imageStorageId: fields.imageStorageId || undefined,
@@ -143,6 +147,37 @@ export const generateUploadUrl = mutation({
  * One-off migration: moves the demo catalog to realistic INR prices
  * (matches src/data.ts). Safe to run repeatedly.
  */
+export const applyStockTracking = mutation({
+  args: { password: v.string() },
+  handler: async (ctx, { password }) => {
+    checkAdmin(password)
+    const byName: Record<string, { sku: string; stock: number }> = {
+      "Delicate Pearl Necklace": { sku: "AA-N-001", stock: 15 },
+      "18K Gold Twist Ring": { sku: "AA-R-002", stock: 8 },
+      "Crystal Drop Earrings": { sku: "AA-E-003", stock: 20 },
+      "Layered Chain Bracelet": { sku: "AA-B-004", stock: 12 },
+      "Minimalist Hoop Earrings": { sku: "AA-E-005", stock: 0 },
+      "Beaded Anklet": { sku: "AA-A-006", stock: 25 },
+      "Vintage Locket Necklace": { sku: "AA-N-007", stock: 6 },
+      "Diamond Tennis Bracelet": { sku: "AA-B-008", stock: 4 },
+      "Moonstone Pendant": { sku: "AA-N-009", stock: 10 },
+      "Twisted Gold Bangle": { sku: "AA-B-010", stock: 7 },
+      "Sapphire Stud Earrings": { sku: "AA-E-011", stock: 5 },
+      "Infinity Anklet": { sku: "AA-A-012", stock: 18 },
+    }
+    const products = await ctx.db.query("products").collect()
+    let updated = 0
+    for (const p of products) {
+      const meta = byName[p.name]
+      if (!meta) continue
+      await ctx.db.patch(p._id, meta)
+      updated += 1
+    }
+    return { updated }
+  },
+})
+
+/** @deprecated kept for reference — INR pricing is already applied live */
 export const applyInrPricing = mutation({
   args: { password: v.string() },
   handler: async (ctx, { password }) => {

@@ -6,6 +6,8 @@ export interface AdminProductInput {
   id?: string
   name: string
   price: number
+  sku?: string
+  stock?: number
   category: string
   tag?: string
   description?: string
@@ -50,6 +52,10 @@ export const saveProduct = (password: string, input: AdminProductInput) =>
     id: input.id as Id<"products"> | undefined,
     imageStorageId: input.imageStorageId as Id<"_storage"> | undefined,
   })
+
+/** Lifts demo products to tracked inventory with sku/stock (one-off). */
+export const migrateStock = (password: string) =>
+  getClient().mutation(api.admin.applyStockTracking, { password })
 
 export const deleteProduct = (password: string, id: string) =>
   getClient().mutation(api.admin.deleteProduct, {

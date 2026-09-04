@@ -15,6 +15,8 @@ export const run = mutation({
         tag: p.tag,
         imageUrl: p.image ?? undefined,
         active: true,
+        sku: p.sku,
+        stock: p.stock,
         createdAt: Date.parse(p.addedAt),
       })
     }

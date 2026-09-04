@@ -34,6 +34,8 @@ export const PRODUCTS: Product[] = [
     image:
       "https://images.unsplash.com/photo-1631982686092-e6561a853187?w=600&q=80&auto=format&fit=crop",
     tag: "Bestseller",
+    sku: "AA-N-001",
+    stock: 15,
     addedAt: "2026-04-12",
   },
   {
@@ -43,6 +45,8 @@ export const PRODUCTS: Product[] = [
     category: "Rings",
     image:
       "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=600&q=80&auto=format&fit=crop",
+    sku: "AA-R-002",
+    stock: 8,
     addedAt: "2026-02-14",
   },
   {
@@ -53,6 +57,8 @@ export const PRODUCTS: Product[] = [
     image:
       "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=600&q=80&auto=format&fit=crop",
     tag: "New",
+    sku: "AA-E-003",
+    stock: 20,
     addedAt: "2026-08-20",
   },
   {
@@ -62,6 +68,8 @@ export const PRODUCTS: Product[] = [
     category: "Bracelets",
     image:
       "https://images.unsplash.com/photo-1588444837495-c6cfeb53f32d?w=600&q=80&auto=format&fit=crop",
+    sku: "AA-B-004",
+    stock: 12,
     addedAt: "2026-01-20",
   },
   {
@@ -71,6 +79,8 @@ export const PRODUCTS: Product[] = [
     category: "Earrings",
     image:
       "https://images.pexels.com/photos/13081070/pexels-photo-13081070.jpeg?auto=compress&cs=tinysrgb&w=600",
+    sku: "AA-E-005",
+    stock: 0, // deliberately out of stock to exercise the flow
     addedAt: "2026-05-30",
   },
   {
@@ -81,6 +91,8 @@ export const PRODUCTS: Product[] = [
     image:
       "https://images.pexels.com/photos/20192867/pexels-photo-20192867.jpeg?auto=compress&cs=tinysrgb&w=600",
     tag: "New",
+    sku: "AA-A-006",
+    stock: 25,
     addedAt: "2026-08-10",
   },
   {
@@ -90,6 +102,8 @@ export const PRODUCTS: Product[] = [
     category: "Necklaces",
     image:
       "https://images.unsplash.com/photo-1491349174775-aaafddd81942?w=600&q=80&auto=format&fit=crop",
+    sku: "AA-N-007",
+    stock: 6,
     addedAt: "2025-12-05",
   },
   {
@@ -100,6 +114,8 @@ export const PRODUCTS: Product[] = [
     image:
       "https://images.pexels.com/photos/8891958/pexels-photo-8891958.jpeg?auto=compress&cs=tinysrgb&w=600",
     tag: "Premium",
+    sku: "AA-B-008",
+    stock: 4,
     addedAt: "2026-07-28",
   },
   {
@@ -109,6 +125,8 @@ export const PRODUCTS: Product[] = [
     category: "Necklaces",
     image:
       "https://images.unsplash.com/photo-1542272604-787c3835535d?w=600&q=80&auto=format&fit=crop",
+    sku: "AA-N-009",
+    stock: 10,
     addedAt: "2026-03-25",
   },
   {
@@ -118,6 +136,8 @@ export const PRODUCTS: Product[] = [
     category: "Bracelets",
     image:
       "https://images.pexels.com/photos/20493839/pexels-photo-20493839.jpeg?auto=compress&cs=tinysrgb&w=600",
+    sku: "AA-B-010",
+    stock: 7,
     addedAt: "2026-06-18",
   },
   {
@@ -128,6 +148,8 @@ export const PRODUCTS: Product[] = [
     image:
       "https://images.pexels.com/photos/5370643/pexels-photo-5370643.jpeg?auto=compress&cs=tinysrgb&w=600",
     tag: "Premium",
+    sku: "AA-E-011",
+    stock: 5,
     addedAt: "2026-07-05",
   },
   {
@@ -137,6 +159,8 @@ export const PRODUCTS: Product[] = [
     category: "Anklets",
     image:
       "https://images.pexels.com/photos/12564237/pexels-photo-12564237.jpeg?auto=compress&cs=tinysrgb&w=600",
+    sku: "AA-A-012",
+    stock: 18,
     addedAt: "2026-05-02",
   },
 ]

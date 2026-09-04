@@ -5,6 +5,8 @@ export default defineSchema({
   products: defineTable({
     name: v.string(),
     price: v.number(), // price in INR paise? No — plain INR number, e.g. 1499
+    sku: v.optional(v.string()),
+    stock: v.optional(v.number()), // units on hand; undefined = not tracked
     category: v.string(),
     tag: v.optional(v.string()),
     description: v.optional(v.string()),

@@ -254,7 +254,11 @@ export default function CartDrawer({
                       </span>
                       <button
                         onClick={() => onQty(item.id, item.quantity + 1)}
-                        className="w-6 h-6 rounded-full flex items-center justify-center text-sm transition-colors hover:bg-stone-100"
+                        disabled={
+                          typeof item.stock === "number" &&
+                          item.quantity >= item.stock
+                        }
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-sm transition-colors hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-40"
                         style={{
                           border: `1px solid ${colors.line}`,
                           color: colors.brown,

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import type { CartItem, Product } from "../types"
 import {
   addCartItem,
+  availableStock,
   cartItemCount,
   cartSubtotal,
   removeCartItem,
@@ -52,6 +53,61 @@ describe("addCartItem", () => {
     const cart = [item(necklace, 1)]
     addCartItem(cart, necklace)
     expect(cart).toEqual([item(necklace, 1)])
+  })
+})
+
+describe("availableStock", () => {
+  it("returns infinity for untracked products", () => {
+    expect(availableStock({ stock: undefined }, [])).toBe(Infinity)
+  })
+
+  it("returns the full stock when nothing is in the cart", () => {
+    expect(availableStock({ stock: 5 }, [])).toBe(5)
+  })
+
+  it("subtracts what is already in the cart", () => {
+    const stocked = { ...necklace, stock: 5 }
+    const cart = [item(stocked, 3)]
+    expect(availableStock(stocked, cart)).toBe(2)
+  })
+
+  it("never goes below zero", () => {
+    const stocked = { ...necklace, stock: 2 }
+    const cart = [item(stocked, 5)]
+    expect(availableStock(stocked, cart)).toBe(0)
+  })
+})
+
+describe("stock-aware addCartItem", () => {
+  it("refuses to add a sold-out product", () => {
+    expect(addCartItem([], { ...necklace, stock: 0 })).toEqual([])
+  })
+
+  it("stops adding once the stock cap is reached", () => {
+    const stocked = { ...necklace, stock: 2 }
+    let cart = addCartItem([], stocked)
+    cart = addCartItem(cart, stocked)
+    expect(cart).toEqual([item(stocked, 2)])
+    // third add must be ignored — the cart already holds all 2 units
+    expect(addCartItem(cart, stocked)).toEqual([item(stocked, 2)])
+  })
+
+  it("still adds freely when stock is not tracked", () => {
+    const result = addCartItem(addCartItem([], necklace), necklace)
+    expect(result).toEqual([item(necklace, 2)])
+  })
+})
+
+describe("stock-aware updateCartQuantity", () => {
+  it("caps the quantity at the available stock", () => {
+    const stocked = { ...necklace, stock: 3 }
+    const cart = [item(stocked, 1)]
+    expect(updateCartQuantity(cart, "1", 9)).toEqual([item(stocked, 3)])
+  })
+
+  it("does not cap untracked items", () => {
+    const cart = [item(necklace, 1)]
+    expect(updateCartQuantity(cart, "1", 9)).toEqual([item(necklace, 9)])
   })
 })
 

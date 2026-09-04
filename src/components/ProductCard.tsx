@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { formatPrice } from "../lib/currency"
 import { colors, fonts, gradients } from "../lib/theme"
-import type { Product } from "../types"
+import { isOutOfStock, type Product } from "../types"
 
 export default function ProductCard({
   product,
@@ -40,6 +40,8 @@ export default function ProductCard({
     setEditingPrice(false)
   }
 
+  const outOfStock = isOutOfStock(product)
+
   const handleAdd = () => {
     onAddToCart(product)
     setAdded(true)
@@ -72,12 +74,26 @@ export default function ProductCard({
         onChange={handleFile}
       />
 
-      {product.tag && (
+      {product.tag && !outOfStock && (
         <div
           className="absolute top-3 left-3 z-10 text-xs px-2.5 py-1 rounded-full font-semibold"
           style={{ ...tagStyle, fontFamily: fonts.sans, letterSpacing: "0.04em" }}
         >
           {product.tag}
+        </div>
+      )}
+
+      {outOfStock && (
+        <div
+          className="absolute top-3 left-3 z-10 text-xs px-2.5 py-1 rounded-full font-semibold"
+          style={{
+            background: "rgba(179,38,30,0.92)",
+            color: "#fff",
+            fontFamily: fonts.sans,
+            letterSpacing: "0.05em",
+          }}
+        >
+          Sold Out
         </div>
       )}
 
@@ -136,6 +152,7 @@ export default function ProductCard({
               alt={product.name}
               onError={() => setImgError(true)}
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              style={outOfStock ? { filter: "grayscale(0.7) opacity(0.55)" } : undefined}
             />
             <button
               className="absolute bottom-3 right-3 text-xs px-3 py-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity font-medium"
@@ -278,12 +295,15 @@ export default function ProductCard({
 
           <button
             onClick={handleAdd}
-            className="text-xs px-3.5 py-1.5 rounded-full font-semibold transition-all whitespace-nowrap"
+            disabled={outOfStock}
+            className="text-xs px-3.5 py-1.5 rounded-full font-semibold transition-all whitespace-nowrap disabled:cursor-not-allowed"
             style={{
               background: added
                 ? "rgba(109,186,90,0.15)"
-                : gradients.darkCta,
-              color: added ? colors.success : colors.gold,
+                : outOfStock
+                  ? "rgba(180,160,140,0.25)"
+                  : gradients.darkCta,
+              color: added ? colors.success : outOfStock ? colors.tanFaint : colors.gold,
               fontFamily: fonts.sans,
               letterSpacing: "0.03em",
               border: added
@@ -291,7 +311,7 @@ export default function ProductCard({
                 : "1px solid transparent",
             }}
           >
-            {added ? "✓ Added" : "+ Bag"}
+            {added ? "✓ Added" : outOfStock ? "Sold Out" : "+ Bag"}
           </button>
         </div>
       </div>

@@ -51,6 +51,8 @@ export function useCatalog(): Product[] {
           category: string
           tag?: string
           image: string | null
+          sku?: string
+          stock?: number
           createdAt: number
         }
         const mapped: Product[] = (rows as LiveProductRow[]).map((p) => ({
@@ -60,6 +62,8 @@ export function useCatalog(): Product[] {
           category: p.category,
           tag: p.tag,
           image: p.image ?? null,
+          sku: p.sku,
+          stock: p.stock,
           addedAt: new Date(p.createdAt).toISOString().slice(0, 10),
         }))
         // Only swap in once we actually have data (avoids flashing the empty
