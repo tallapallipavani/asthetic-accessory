@@ -46,6 +46,15 @@ export const listOrders = query({
   },
 })
 
+/** Newsletter subscribers, newest first — for the admin dashboard/export. */
+export const listSubscribers = query({
+  args: { password: v.string() },
+  handler: async (ctx, { password }) => {
+    checkAdmin(password)
+    return ctx.db.query("subscribers").order("desc").collect()
+  },
+})
+
 const ORDER_FLOW = ["pending", "paid", "processing", "shipped", "delivered"]
 
 /**

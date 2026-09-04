@@ -6,12 +6,14 @@ import {
   deleteProduct,
   listAllProducts,
   listOrders,
+  listSubscribers,
   saveProduct,
   updateOrderStatus,
   uploadProductPhoto,
 } from "../lib/adminApi"
 import type { AdminProductInput } from "../lib/adminApi"
 import { formatPrice } from "../lib/currency"
+import { dateStamp, downloadCsv, toCsv } from "../lib/csv"
 import { colors, fonts, gradients } from "../lib/theme"
 import GoldLogoMark from "./GoldLogoMark"
 
@@ -44,6 +46,12 @@ interface OrderRow {
   paymentMethod?: string
   paymentId?: string
   razorpayOrderId?: string
+  createdAt: number
+}
+
+interface SubscriberRow {
+  _id: string
+  email: string
   createdAt: number
 }
 
@@ -81,11 +89,13 @@ export default function AdminPanel() {
   const [authed, setAuthed] = useState(false)
   const [checking, setChecking] = useState(!!sessionStorage.getItem(ADMIN_SESSION_KEY))
   const [error, setError] = useState("")
-  const [view, setView] = useState<"products" | "orders">("products")
+  const [view, setView] = useState<"dashboard" | "products" | "orders">("dashboard")
   const [products, setProducts] = useState<AdminProduct[]>([])
   const [orders, setOrders] = useState<OrderRow[]>([])
+  const [subscribers, setSubscribers] = useState<SubscriberRow[]>([])
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
   const [busyOrder, setBusyOrder] = useState<string | null>(null)
+  const [dataReady, setDataReady] = useState(false)
   const [editor, setEditor] = useState<AdminProduct | "new" | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -97,6 +107,18 @@ export default function AdminPanel() {
   const refreshOrders = async () => {
     const list = await listOrders(password)
     setOrders(list as OrderRow[])
+  }
+
+  const refreshAll = async () => {
+    const [p, o, s] = await Promise.all([
+      listAllProducts(password),
+      listOrders(password),
+      listSubscribers(password),
+    ])
+    setProducts(p as AdminProduct[])
+    setOrders(o as OrderRow[])
+    setSubscribers(s as SubscriberRow[])
+    setDataReady(true)
   }
 
   const changeStatus = async (o: OrderRow, next: string) => {
@@ -115,7 +137,7 @@ export default function AdminPanel() {
   useEffect(() => {
     if (!password) return
     let cancelled = false
-    refreshProducts()
+    refreshAll()
       .then(() => {
         if (!cancelled) {
           setAuthed(true)
@@ -147,7 +169,7 @@ export default function AdminPanel() {
       }
       sessionStorage.setItem(ADMIN_SESSION_KEY, password)
       setAuthed(true)
-      await refreshProducts()
+      await refreshAll()
     } catch {
       setError("Could not reach the backend. Is Convex configured?")
     }
@@ -160,14 +182,67 @@ export default function AdminPanel() {
     setProducts([])
   }
 
-  const openTab = async (tab: "products" | "orders") => {
+  const openTab = async (tab: "dashboard" | "products" | "orders") => {
     setView(tab)
     try {
-      if (tab === "products") await refreshProducts()
-      else await refreshOrders()
+      await refreshAll()
     } catch {
       /* session likely expired — handled on next action */
     }
+  }
+
+  const exportOrders = () => {
+    const rows = orders.map((o) => [
+      o.number,
+      o.createdAt ? new Date(o.createdAt).toLocaleString() : "",
+      o.customer.name,
+      o.customer.email,
+      o.customer.phone ?? "",
+      o.customer.address ?? "",
+      o.items.map((i) => `${i.quantity} × ${i.name}`).join(" | "),
+      o.subtotal,
+      o.discount,
+      o.shipping,
+      o.total,
+      o.status,
+      o.paymentMethod ?? "",
+      o.paymentId ?? "",
+    ])
+    downloadCsv(
+      `asthetic-orders-${dateStamp()}.csv`,
+      toCsv(
+        [
+          "Order",
+          "Placed",
+          "Customer",
+          "Email",
+          "Phone",
+          "Address",
+          "Items",
+          "Subtotal (INR)",
+          "Discount (INR)",
+          "Shipping (INR)",
+          "Total (INR)",
+          "Status",
+          "Payment method",
+          "Payment ref",
+        ],
+        rows,
+      ),
+    )
+  }
+
+  const exportSubscribers = () => {
+    downloadCsv(
+      `asthetic-subscribers-${dateStamp()}.csv`,
+      toCsv(
+        ["Email", "Subscribed"],
+        subscribers.map((s) => [
+          s.email,
+          new Date(s.createdAt).toLocaleString(),
+        ]),
+      ),
+    )
   }
 
   const handleSave = async (input: AdminProductInput) => {
@@ -300,8 +375,8 @@ export default function AdminPanel() {
 
       <div className="max-w-5xl mx-auto px-5 py-6">
         {/* tabs */}
-        <div className="flex gap-2 mb-6">
-          {(["products", "orders"] as const).map((tab) => (
+        <div className="flex gap-2 mb-6 flex-wrap">
+          {(["dashboard", "products", "orders"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => openTab(tab)}
@@ -315,9 +390,21 @@ export default function AdminPanel() {
             >
               {tab}
               {tab === "orders" && orders.length > 0 ? ` (${orders.length})` : ""}
+              {tab === "dashboard" && orders.length > 0 ? ` (${orders.length})` : ""}
             </button>
           ))}
         </div>
+
+        {view === "dashboard" && (
+          <Dashboard
+            orders={orders}
+            subscribers={subscribers}
+            productsCount={products.length}
+            ready={dataReady}
+            onExportOrders={exportOrders}
+            onExportSubscribers={exportSubscribers}
+          />
+        )}
 
         {view === "products" && (
           <div>
@@ -387,11 +474,21 @@ export default function AdminPanel() {
 
         {view === "orders" && (
           <div>
-            <h2 className="mb-4" style={{ fontFamily: fonts.serif, color: colors.ink, fontSize: "1.2rem" }}>
-              Orders
-            </h2>
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <h2 style={{ fontFamily: fonts.serif, color: colors.ink, fontSize: "1.2rem" }}>
+                Orders
+              </h2>
+              <button
+                onClick={exportOrders}
+                disabled={orders.length === 0}
+                className="px-4 py-2 rounded-full text-xs font-semibold transition-all hover:brightness-105 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: gradients.gold, color: colors.ink, fontFamily: fonts.sans }}
+              >
+                ⬇ Export CSV
+              </button>
+            </div>
             {orders.length === 0 ? (
-              <Empty text="No orders yet — they'll appear here once checkout is live." />
+              <Empty text="No orders yet — place a checkout order from the storefront to see it here." />
             ) : (
               <div className="space-y-2.5">
                 {orders.map((o) => {
@@ -576,6 +673,164 @@ export default function AdminPanel() {
           onSave={handleSave}
         />
       )}
+    </div>
+  )
+}
+
+function Dashboard({
+  orders,
+  subscribers,
+  productsCount,
+  ready,
+  onExportOrders,
+  onExportSubscribers,
+}: {
+  orders: OrderRow[]
+  subscribers: SubscriberRow[]
+  productsCount: number
+  ready: boolean
+  onExportOrders: () => void
+  onExportSubscribers: () => void
+}) {
+  if (!ready) {
+    return <Empty text="Loading…" />
+  }
+  const paidOrders = orders.filter((o) => o.status !== "pending" && o.status !== "failed")
+  const revenue = paidOrders.reduce((s, o) => s + o.total, 0)
+  const unitsSold = paidOrders.reduce(
+    (s, o) => s + o.items.reduce((x, i) => x + i.quantity, 0),
+    0,
+  )
+  const byStatus = (st: string) => orders.filter((o) => o.status === st).length
+
+  const cards: { icon: string; label: string; value: string }[] = [
+    {
+      icon: "💰",
+      label: "Revenue (paid)",
+      value: formatPrice(revenue),
+    },
+    {
+      icon: "📦",
+      label: "Orders",
+      value: String(orders.length),
+    },
+    {
+      icon: "💍",
+      label: "Units sold",
+      value: String(unitsSold),
+    },
+    {
+      icon: "🛍️",
+      label: "Products",
+      value: String(productsCount),
+    },
+    {
+      icon: "💌",
+      label: "Subscribers",
+      value: String(subscribers.length),
+    },
+  ]
+
+  return (
+    <div>
+      <h2
+        className="mb-4"
+        style={{ fontFamily: fonts.serif, color: colors.ink, fontSize: "1.2rem" }}
+      >
+        Dashboard
+      </h2>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+        {cards.map((c) => (
+          <div
+            key={c.label}
+            className="p-4 rounded-2xl"
+            style={{ background: "white", border: "1px solid rgba(200,151,58,0.1)" }}
+          >
+            <p className="text-lg">{c.icon}</p>
+            <p
+              className="text-sm font-semibold mt-2 truncate"
+              style={{ color: colors.ink, fontFamily: fonts.sans }}
+              title={c.value}
+            >
+              {c.value}
+            </p>
+            <p
+              className="text-[10px] uppercase mt-0.5"
+              style={{ color: colors.tan, fontFamily: fonts.sans, fontWeight: 700, letterSpacing: "0.08em" }}
+            >
+              {c.label}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div
+        className="p-5 rounded-2xl mb-6"
+        style={{ background: "white", border: "1px solid rgba(200,151,58,0.1)" }}
+      >
+        <DetailLabel>Fulfilment pipeline</DetailLabel>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          {["pending", "paid", "processing", "shipped", "delivered"].map((st) => (
+            <div
+              key={st}
+              className="rounded-xl px-3 py-2.5 text-center"
+              style={{ background: colors.creamMuted }}
+            >
+              <p
+                className="text-base font-semibold"
+                style={{ color: colors.ink, fontFamily: fonts.sans }}
+              >
+                {byStatus(st)}
+              </p>
+              <p
+                className="text-[10px] uppercase"
+                style={{ color: colors.tan, fontFamily: fonts.sans, fontWeight: 700, letterSpacing: "0.08em" }}
+              >
+                {st}
+              </p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 text-xs" style={{ color: colors.tanFaint, fontFamily: fonts.sans }}>
+          Demo orders count toward these numbers — they are recorded as real database orders.
+        </div>
+      </div>
+
+      <div
+        className="p-5 rounded-2xl"
+        style={{ background: "white", border: "1px solid rgba(200,151,58,0.1)" }}
+      >
+        <div className="flex items-center justify-between mb-2">
+          <DetailLabel>Newsletter subscribers</DetailLabel>
+          <button
+            onClick={onExportSubscribers}
+            disabled={subscribers.length === 0}
+            className="text-xs px-3 py-1.5 rounded-full font-semibold transition-all hover:brightness-105 disabled:opacity-40"
+            style={{ background: gradients.gold, color: colors.ink, fontFamily: fonts.sans }}
+          >
+            ⬇ Export
+          </button>
+        </div>
+        <p className="text-xs mb-3" style={{ color: colors.tanFaint, fontFamily: fonts.sans }}>
+          {subscribers.length > 0
+            ? subscribers.slice(0, 5).map((s) => s.email).join(" · ")
+            : "No signups yet — the storefront newsletter form stores these."}
+          {subscribers.length > 5 ? ` (+${subscribers.length - 5} more)` : ""}
+        </p>
+        <button
+          onClick={onExportOrders}
+          disabled={orders.length === 0}
+          className="text-xs px-3 py-1.5 rounded-full font-semibold transition-all hover:brightness-105 disabled:opacity-40"
+          style={{
+            color: colors.brown,
+            border: `1px solid ${colors.line}`,
+            fontFamily: fonts.sans,
+          }}
+        >
+          ⬇ Export orders CSV
+        </button>
+      </div>
     </div>
   )
 }

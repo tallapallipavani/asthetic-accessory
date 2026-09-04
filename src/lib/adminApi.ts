@@ -34,6 +34,9 @@ export const listAllProducts = (password: string) =>
 export const listOrders = (password: string) =>
   getClient().query(api.admin.listOrders, { password })
 
+export const listSubscribers = (password: string) =>
+  getClient().query(api.admin.listSubscribers, { password })
+
 export const updateOrderStatus = (
   password: string,
   id: string,
