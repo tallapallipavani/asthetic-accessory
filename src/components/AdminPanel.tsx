@@ -7,6 +7,7 @@ import {
   listAllProducts,
   listOrders,
   saveProduct,
+  updateOrderStatus,
   uploadProductPhoto,
 } from "../lib/adminApi"
 import type { AdminProductInput } from "../lib/adminApi"
@@ -38,10 +39,38 @@ interface OrderRow {
   shipping: number
   total: number
   status: string
+  paymentId?: string
   createdAt: number
 }
 
 const TAGS = ["", "New", "Bestseller", "Premium"]
+
+/** Next step for each status along the fulfillment flow. */
+const ORDER_FLOW: { from: string; to: string; label: string }[] = [
+  { from: "paid", to: "processing", label: "Start processing" },
+  { from: "processing", to: "shipped", label: "Mark shipped" },
+  { from: "shipped", to: "delivered", label: "Mark delivered" },
+]
+
+/**
+ * Human-friendly payment info from the stored payment id.
+ * Demo ids look like "demo:gpay:1699..."; real Razorpay ids differ.
+ */
+function paymentInfo(order: OrderRow): { label: string; isDemo: boolean } {
+  const raw = order.paymentId ?? ""
+  if (!raw) return { label: "Not recorded", isDemo: false }
+  if (raw.startsWith("demo:")) {
+    const method = raw.split(":")[1] ?? "upi"
+    const names: Record<string, string> = {
+      gpay: "Google Pay (demo)",
+      phonepe: "PhonePe (demo)",
+      paytm: "Paytm (demo)",
+      card: "Card / Netbanking (demo)",
+    }
+    return { label: names[method] ?? `${method} (demo)`, isDemo: true }
+  }
+  return { label: "Online payment", isDemo: false }
+}
 
 export default function AdminPanel() {
   const [password, setPassword] = useState(
@@ -53,6 +82,8 @@ export default function AdminPanel() {
   const [view, setView] = useState<"products" | "orders">("products")
   const [products, setProducts] = useState<AdminProduct[]>([])
   const [orders, setOrders] = useState<OrderRow[]>([])
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
+  const [busyOrder, setBusyOrder] = useState<string | null>(null)
   const [editor, setEditor] = useState<AdminProduct | "new" | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -64,6 +95,18 @@ export default function AdminPanel() {
   const refreshOrders = async () => {
     const list = await listOrders(password)
     setOrders(list as OrderRow[])
+  }
+
+  const changeStatus = async (o: OrderRow, next: string) => {
+    setBusyOrder(o._id)
+    try {
+      await updateOrderStatus(password, o._id, next)
+      await refreshOrders()
+    } catch {
+      /* keep the current status; a refresh will resync */
+    } finally {
+      setBusyOrder(null)
+    }
   }
 
   // Silent re-auth when a session already exists in sessionStorage.
@@ -345,42 +388,154 @@ export default function AdminPanel() {
               <Empty text="No orders yet — they'll appear here once checkout is live." />
             ) : (
               <div className="space-y-2.5">
-                {orders.map((o) => (
-                  <div
-                    key={o._id}
-                    className="p-4 rounded-2xl"
-                    style={{ background: "white", border: "1px solid rgba(200,151,58,0.1)" }}
-                  >
-                    <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <p className="text-sm font-semibold" style={{ color: colors.ink, fontFamily: fonts.sans }}>
-                        {o.number}
-                      </p>
-                      <span
-                        className="text-[10px] uppercase px-2.5 py-1 rounded-full"
-                        style={{
-                          background:
-                            o.status === "paid"
-                              ? "rgba(109,186,90,0.15)"
-                              : "rgba(200,151,58,0.15)",
-                          color: o.status === "paid" ? colors.successDeep : colors.goldDark,
-                          fontFamily: fonts.sans,
-                          fontWeight: 700,
-                          letterSpacing: "0.06em",
-                        }}
+                {orders.map((o) => {
+                  const open = expandedOrder === o._id
+                  const info = paymentInfo(o)
+                  const itemCount = o.items.reduce((s, i) => s + i.quantity, 0)
+                  const step =
+                    ORDER_FLOW.find((f) => f.from === o.status) ?? null
+                  return (
+                    <div
+                      key={o._id}
+                      className="rounded-2xl"
+                      style={{ background: "white", border: "1px solid rgba(200,151,58,0.1)" }}
+                    >
+                      {/* collapsed header — click to expand */}
+                      <button
+                        onClick={() => setExpandedOrder(open ? null : o._id)}
+                        className="w-full text-left p-4 flex items-center gap-3"
+                        aria-expanded={open}
+                        style={{ fontFamily: fonts.sans }}
                       >
-                        {o.status}
-                      </span>
+                        <span
+                          className="text-xs shrink-0"
+                          style={{ color: colors.tan, fontWeight: 700, letterSpacing: "0.05em" }}
+                        >
+                          {o.number}
+                        </span>
+                        <StatusChip status={o.status} />
+                        <span className="flex-1 text-xs truncate" style={{ color: colors.tan }}>
+                          {o.customer.name} · {itemCount} item{itemCount === 1 ? "" : "s"} ·{" "}
+                          {new Date(o.createdAt).toLocaleString()}
+                        </span>
+                        <span className="text-sm font-semibold shrink-0" style={{ color: colors.gold }}>
+                          {formatPrice(o.total)}
+                        </span>
+                        <span
+                          className="text-xs shrink-0 transition-transform"
+                          style={{ color: colors.tan, transform: open ? "rotate(180deg)" : "none" }}
+                        >
+                          ▾
+                        </span>
+                      </button>
+
+                      {/* expanded details */}
+                      {open && (
+                        <div
+                          className="px-4 pb-4 pt-1 border-t"
+                          style={{ borderColor: "rgba(200,151,58,0.08)" }}
+                        >
+                          <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                            {/* customer */}
+                            <div>
+                              <DetailLabel>Customer</DetailLabel>
+                              <DetailLine>{o.customer.name}</DetailLine>
+                              <DetailLine>{o.customer.email}</DetailLine>
+                              {o.customer.phone && <DetailLine>📞 {o.customer.phone}</DetailLine>}
+                              {o.customer.address && (
+                                <DetailLine>📍 {o.customer.address}</DetailLine>
+                              )}
+                            </div>
+                            {/* payment */}
+                            <div>
+                              <DetailLabel>Payment</DetailLabel>
+                              <DetailLine>
+                                {info.isDemo ? "🧪 " : "💳 "}
+                                {info.label}
+                              </DetailLine>
+                              <DetailLine>Status: {o.status}</DetailLine>
+                              <DetailLine>
+                                Placed: {new Date(o.createdAt).toLocaleString()}
+                              </DetailLine>
+                            </div>
+                          </div>
+
+                          {/* items */}
+                          <DetailLabel>Items</DetailLabel>
+                          <div className="mb-4 space-y-1">
+                            {o.items.map((i, idx) => (
+                              <div
+                                key={idx}
+                                className="flex justify-between text-xs"
+                                style={{ color: colors.brown, fontFamily: fonts.sans }}
+                              >
+                                <span className="truncate pr-3">
+                                  {i.quantity} × {i.name}
+                                </span>
+                                <span style={{ color: colors.ink }}>
+                                  {formatPrice(i.price * i.quantity)}
+                                </span>
+                              </div>
+                            ))}
+                            <div
+                              className="border-t pt-1.5 mt-1.5 space-y-0.5"
+                              style={{ borderColor: "rgba(200,151,58,0.1)" }}
+                            >
+                              <MoneyLine label="Subtotal" value={formatPrice(o.subtotal)} />
+                              {o.discount > 0 && (
+                                <MoneyLine
+                                  label="Discount"
+                                  value={`−${formatPrice(o.discount)}`}
+                                />
+                              )}
+                              <MoneyLine
+                                label="Shipping"
+                                value={
+                                  o.shipping === 0 ? "Free" : formatPrice(o.shipping)
+                                }
+                              />
+                              <MoneyLine
+                                label="Total"
+                                value={formatPrice(o.total)}
+                                strong
+                              />
+                            </div>
+                          </div>
+
+                          {/* fulfillment controls */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {step && (
+                              <button
+                                onClick={() => changeStatus(o, step.to)}
+                                disabled={busyOrder === o._id}
+                                className="px-4 py-2 rounded-full text-xs font-semibold transition-all hover:brightness-105 disabled:opacity-50"
+                                style={{ background: gradients.gold, color: colors.ink, fontFamily: fonts.sans }}
+                              >
+                                {busyOrder === o._id ? "Updating…" : `✓ ${step.label}`}
+                              </button>
+                            )}
+                            {o.status === "delivered" && (
+                              <span
+                                className="text-xs"
+                                style={{ color: colors.successDeep, fontFamily: fonts.sans }}
+                              >
+                                ✅ Delivered — order complete
+                              </span>
+                            )}
+                            {o.status === "pending" && (
+                              <span
+                                className="text-xs"
+                                style={{ color: colors.goldDark, fontFamily: fonts.sans }}
+                              >
+                                ⏳ Awaiting payment confirmation
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <p className="text-xs mt-1.5" style={{ color: colors.tan, fontFamily: fonts.sans }}>
-                      {o.customer.name} · {o.customer.email}
-                      {o.items.reduce((s, i) => s + i.quantity, 0)} item(s) ·{" "}
-                      {new Date(o.createdAt).toLocaleString()}
-                    </p>
-                    <p className="text-sm mt-2 font-semibold" style={{ color: colors.gold, fontFamily: fonts.sans }}>
-                      Total {formatPrice(o.total)}
-                    </p>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
@@ -404,6 +559,83 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-full flex items-center px-4" style={{ background: colors.cream, fontFamily: fonts.body }}>
       {children}
+    </div>
+  )
+}
+
+function StatusChip({ status }: { status: string }) {
+  const palette: Record<string, { bg: string; fg: string }> = {
+    paid: { bg: "rgba(109,186,90,0.15)", fg: colors.successDeep },
+    processing: { bg: "rgba(200,151,58,0.18)", fg: colors.goldDark },
+    shipped: { bg: "rgba(120,150,220,0.15)", fg: "#3f5da8" },
+    delivered: { bg: "rgba(109,186,90,0.22)", fg: colors.successDeep },
+    pending: { bg: "rgba(200,151,58,0.12)", fg: colors.goldDark },
+    failed: { bg: "rgba(179,38,30,0.12)", fg: colors.danger },
+  }
+  const tone = palette[status] ?? palette.pending
+  return (
+    <span
+      className="text-[10px] uppercase px-2.5 py-1 rounded-full shrink-0"
+      style={{
+        background: tone.bg,
+        color: tone.fg,
+        fontFamily: fonts.sans,
+        fontWeight: 700,
+        letterSpacing: "0.06em",
+      }}
+    >
+      {status}
+    </span>
+  )
+}
+
+function DetailLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p
+      className="text-[10px] uppercase mb-1"
+      style={{
+        color: colors.tanFaint,
+        fontFamily: fonts.sans,
+        fontWeight: 700,
+        letterSpacing: "0.12em",
+      }}
+    >
+      {children}
+    </p>
+  )
+}
+
+function DetailLine({ children }: { children: React.ReactNode }) {
+  return (
+    <p
+      className="text-xs mb-0.5 break-words"
+      style={{ color: colors.brown, fontFamily: fonts.sans }}
+    >
+      {children}
+    </p>
+  )
+}
+
+function MoneyLine({
+  label,
+  value,
+  strong,
+}: {
+  label: string
+  value: string
+  strong?: boolean
+}) {
+  return (
+    <div
+      className="flex justify-between text-xs"
+      style={{
+        color: strong ? colors.ink : colors.tan,
+        fontFamily: fonts.sans,
+        fontWeight: strong ? 700 : 400,
+      }}
+    >
+      <span>{label}</span>
+      <span>{value}</span>
     </div>
   )
 }

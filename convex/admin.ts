@@ -46,6 +46,39 @@ export const listOrders = query({
   },
 })
 
+const ORDER_FLOW = ["pending", "paid", "processing", "shipped", "delivered"]
+
+/**
+ * Moves an order along the fulfillment flow (paid → processing → shipped →
+ * delivered). Rejects invalid transitions so statuses can't jump around.
+ */
+export const updateOrderStatus = mutation({
+  args: {
+    password: v.string(),
+    id: v.id("orders"),
+    status: v.string(),
+  },
+  handler: async (ctx, { password, id, status }) => {
+    checkAdmin(password)
+    if (!ORDER_FLOW.includes(status)) throw new Error(`Unknown status: ${status}`)
+    const order = await ctx.db.get(id)
+    if (!order) throw new Error("Order not found")
+    const from = order.status
+    const fromIndex = ORDER_FLOW.indexOf(from)
+    const toIndex = ORDER_FLOW.indexOf(status)
+    // Allow free moves only between adjacent steps (or back one step when
+    // correcting a mistake). "failed" orders can only move to "pending".
+    const allowed =
+      Math.abs(toIndex - fromIndex) === 1 ||
+      (from === "failed" && status === "pending") ||
+      (toIndex >= fromIndex && status !== "failed")
+    if (!allowed)
+      throw new Error(`Cannot move an order from "${from}" to "${status}"`)
+    await ctx.db.patch(id, { status })
+    return { id, status }
+  },
+})
+
 /** Insert a new product or patch an existing one by id. */
 export const upsertProduct = mutation({
   args: {

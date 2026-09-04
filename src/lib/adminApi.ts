@@ -32,6 +32,17 @@ export const listAllProducts = (password: string) =>
 export const listOrders = (password: string) =>
   getClient().query(api.admin.listOrders, { password })
 
+export const updateOrderStatus = (
+  password: string,
+  id: string,
+  status: string,
+) =>
+  getClient().mutation(api.admin.updateOrderStatus, {
+    password,
+    id: id as Id<"orders">,
+    status,
+  })
+
 export const saveProduct = (password: string, input: AdminProductInput) =>
   getClient().mutation(api.admin.upsertProduct, {
     password,
